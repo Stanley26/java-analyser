@@ -1,0 +1,76 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '3.2.0'
+    id 'io.spring.dependency-management' version '1.1.4'
+}
+
+group = 'com.legacy.analyzer'
+version = '1.0.0'
+sourceCompatibility = '21'
+
+configurations {
+    compileOnly {
+        extendsFrom annotationProcessor
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    // Spring Boot
+    implementation 'org.springframework.boot:spring-boot-starter'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    
+    // Lombok
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+    
+    // JavaParser - Pour l'analyse AST
+    implementation 'com.github.javaparser:javaparser-core:3.25.8'
+    implementation 'com.github.javaparser:javaparser-symbol-solver-core:3.25.8'
+    
+    // XML Parsing
+    implementation 'org.jdom:jdom2:2.0.6.1'
+    implementation 'org.dom4j:dom4j:2.1.4'
+    
+    // JSON Processing
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.16.1'
+    implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.16.1'
+    
+    // Apache POI pour Excel
+    implementation 'org.apache.poi:poi:5.2.5'
+    implementation 'org.apache.poi:poi-ooxml:5.2.5'
+    
+    // Commons
+    implementation 'org.apache.commons:commons-lang3:3.14.0'
+    implementation 'commons-io:commons-io:2.15.1'
+    implementation 'org.apache.commons:commons-collections4:4.4'
+    
+    // Logging
+    implementation 'ch.qos.logback:logback-classic'
+    
+    // CLI Support
+    implementation 'info.picocli:picocli-spring-boot-starter:4.7.5'
+    
+    // Testing
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testImplementation 'org.mockito:mockito-core'
+    testImplementation 'org.assertj:assertj-core'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}
+
+bootJar {
+    archiveBaseName = 'legacy-analyzer'
+    archiveVersion = version
+}
+
+// Gradle Wrapper configuration
+wrapper {
+    gradleVersion = '8.5'
+}

@@ -1,0 +1,89 @@
+spring:
+  application:
+    name: legacy-analyzer
+  main:
+    banner-mode: off
+    web-application-type: none
+
+logging:
+  level:
+    root: INFO
+    com.legacy.analyzer: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+
+analyzer:
+  # Configuration par défaut - peut être surchargée par CLI
+  source:
+    root-directory: ""
+    include-patterns:
+      - "*.ear"
+      - "*.war"
+      - "*.jar"
+    exclude-patterns:
+      - "*-test.ear"
+      - "backup/*"
+      - "*.bak"
+  
+  weblogic:
+    analyze-deployments: true
+    extract-datasources: true
+  
+  analysis:
+    frameworks:
+      - name: struts
+        enabled: true
+        versions: ["1.x", "2.x"]
+      - name: spring
+        enabled: true
+        versions: ["2.x", "3.x", "4.x", "5.x"]
+      - name: servlet
+        enabled: true
+        versions: ["2.5", "3.0", "3.1", "4.0"]
+      - name: jax-rs
+        enabled: true
+        versions: ["1.x", "2.x"]
+    
+    depth:
+      follow-method-calls: 5
+      analyze-inner-classes: true
+      include-anonymous-classes: false
+    
+    database:
+      extract-queries: true
+      parse-sql: true
+      analyze-stored-procedures: true
+      detect-dynamic-queries: true
+    
+    integrations:
+      ejb:
+        analyze-remote-calls: true
+        track-transactions: true
+      cobol:
+        detect-socket-calls: true
+        detect-jni: true
+        detect-file-exchange: true
+      webservices:
+        analyze-soap: true
+        analyze-rest: true
+  
+  output:
+    directory: "./analysis-output"
+    formats:
+      json:
+        pretty-print: true
+        compress: false
+      excel:
+        include-charts: true
+        include-statistics: true
+    
+    reports:
+      global-summary: true
+      per-application: true
+      dependency-matrix: true
+      
+  performance:
+    parallel-analysis: true
+    max-threads: 8
+    memory-limit: "4G"
+    chunk-size: 100
