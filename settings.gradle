@@ -1,0 +1,13 @@
+rootProject.name = 'legacy-analyzer'
+
+// Configuration pour améliorer les performances de build
+gradle.startParameter.excludedTaskNames.addAll(gradle.startParameter.taskNames.findAll { 
+    it.contains(':test') && !gradle.startParameter.taskNames.contains('test')
+})
+
+// Configuration du cache Gradle
+buildCache {
+    local {
+        enabled = true
+    }
+}
