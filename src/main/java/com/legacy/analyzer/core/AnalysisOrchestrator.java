@@ -76,10 +76,17 @@ public class AnalysisOrchestrator {
             log.info("Phase 2: Analyse des applications...");
             List<AnalysisResult> results;
             
-            if (configuration.isParallelAnalysis()) {
-                results = analyzeApplicationsParallel(applications);
-            } else {
-                results = analyzeApplicationsSequential(applications);
+            ConsoleProgressBar progressBar = new ConsoleProgressBar("Analyse des applications", applications.size());
+            progressBar.start();
+
+            try {
+                if (configuration.isParallelAnalysis()) {
+                    results = analyzeApplicationsParallel(applications, progressBar);
+                } else {
+                    results = analyzeApplicationsSequential(applications, progressBar);
+                }
+            } finally {
+                progressBar.close(); // <<< NOUVEAU : Assure que la barre est fermée proprement
             }
             
             // Phase 3: Générer les rapports
@@ -99,12 +106,13 @@ public class AnalysisOrchestrator {
         }
     }
     
-    private List<AnalysisResult> analyzeApplicationsSequential(List<WebLogicApplication> applications) {
+    private List<AnalysisResult> analyzeApplicationsSequential(List<WebLogicApplication> applications, ConsoleProgressBar progressBar) {
         List<AnalysisResult> results = new ArrayList<>();
         
         for (int i = 0; i < applications.size(); i++) {
             WebLogicApplication app = applications.get(i);
-            log.info("Analyse de l'application {}/{}: {}", i + 1, applications.size(), app.getName());
+            // Le log suivant est supprimé car la barre de progression le remplace
+            // log.info("Analyse de l'application {}/{}: {}", i + 1, applications.size(), app.getName());
             
             try {
                 AnalysisResult result = analyzeApplication(app);
@@ -121,13 +129,15 @@ public class AnalysisOrchestrator {
                         .error(e.getMessage())
                         .build();
                 results.add(errorResult);
+            } finally {
+                progressBar.step();
             }
         }
         
         return results;
     }
     
-    private List<AnalysisResult> analyzeApplicationsParallel(List<WebLogicApplication> applications) {
+    private List<AnalysisResult> analyzeApplicationsParallel(List<WebLogicApplication> applications, ConsoleProgressBar progressBar) {
         int threadCount = Math.min(configuration.getPerformance().getMaxThreads(), applications.size());
         ExecutorService executor = Executors.newFixedThreadPool(threadCount);
         
@@ -137,7 +147,8 @@ public class AnalysisOrchestrator {
             List<CompletableFuture<AnalysisResult>> futures = applications.stream()
                     .map(app -> CompletableFuture.supplyAsync(() -> {
                         try {
-                            log.info("Début de l'analyse de: {}", app.getName());
+                            // Ce log peut être conservé pour les fichiers de log détaillés
+                            log.debug("Début de l'analyse de: {}", app.getName());
                             AnalysisResult result = analyzeApplication(app);
                             resultsPersistence.saveApplicationResult(result);
                             return result;
@@ -149,7 +160,9 @@ public class AnalysisOrchestrator {
                                     .error(e.getMessage())
                                     .build();
                         }
-                    }, executor))
+                    }, executor)
+                    // Met à jour la barre de progression à la fin de chaque tâche >>>
+                    .whenComplete((res, err) -> progressBar.step()))
                     .collect(Collectors.toList());
             
             // Attendre la fin de toutes les analyses
@@ -291,17 +304,21 @@ public class AnalysisOrchestrator {
     }
     
     private void displayStatistics(List<AnalysisResult> results, Duration totalDuration) {
-        log.info("=== Statistiques de l'analyse ===");
-        log.info("Durée totale: {} minutes {} secondes", 
-                totalDuration.toMinutes(), 
-                totalDuration.getSeconds() % 60);
+        log.info("=============================================");
+        log.info("===       STATISTIQUES DE L'ANALYSE       ===");
+        log.info("=============================================");
+        
+        long minutes = totalDuration.toMinutes();
+        long seconds = totalDuration.getSeconds() % 60;
+        
+        log.info("Temps d'exécution de l'analyse : {} minute(s) et {} seconde(s)", minutes, seconds);
         
         int successCount = (int) results.stream().filter(AnalysisResult::isSuccess).count();
         int failureCount = results.size() - successCount;
         
         log.info("Applications analysées: {}", results.size());
-        log.info("Succès: {}", successCount);
-        log.info("Échecs: {}", failureCount);
+        log.info("  -> Succès : {}", successCount);
+        log.info("  -> Échecs : {}", failureCount);
         
         int totalEndpoints = results.stream()
                 .filter(AnalysisResult::isSuccess)
@@ -319,5 +336,6 @@ public class AnalysisOrchestrator {
                             r.getApplication().getName(), 
                             r.getError()));
         }
+        log.info("=============================================");
     }
 }
