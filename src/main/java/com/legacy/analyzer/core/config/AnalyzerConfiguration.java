@@ -35,6 +35,7 @@ public class AnalyzerConfiguration {
     // Runtime configuration
     private Path sourceDirectory;
     private Path outputDirectory;
+    private Path businessFunctionsFile;
     private boolean parallelAnalysis = true;
     private boolean deepAnalysis = false;
     private String targetApplication;

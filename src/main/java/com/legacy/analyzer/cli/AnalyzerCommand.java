@@ -66,6 +66,9 @@ public class AnalyzerCommand implements Callable<Integer> {
         @Option(names = {"--deep"}, description = "Analyse approfondie", defaultValue = "false")
         private boolean deepAnalysis;
 
+        @Option(names = {"--business-functions-file"}, description = "Fichier CSV associant les fonctions d'affaire aux URLs. Format : 'Fonction;URL'")
+        private Path businessFunctionsFile;
+
         @Override
         public Integer call() {
             try {
@@ -76,6 +79,11 @@ public class AnalyzerCommand implements Callable<Integer> {
                 // Configuration de l'analyse
                 if (configFile != null) {
                     configuration.loadFromFile(configFile);
+                }
+
+                //  On passe le fichier à la configuration
+                if (businessFunctionsFile != null) {
+                    configuration.setBusinessFunctionsFile(businessFunctionsFile);
                 }
                 
                 configuration.setSourceDirectory(Paths.get(sourceDir));

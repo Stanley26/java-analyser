@@ -88,6 +88,21 @@ public class AnalysisOrchestrator {
             } finally {
                 progressBar.close(); // <<< NOUVEAU : Assure que la barre est fermée proprement
             }
+
+            // Phase d'enrichissement des endpoints 
+            if (configuration.getBusinessFunctionsFile() != null) {
+                log.info("Phase 2.5: Association des fonctions d'affaire...");
+                BusinessFunctionMapper mapper = new BusinessFunctionMapper(configuration.getBusinessFunctionsFile());
+                
+                List<Endpoint> allEndpoints = results.stream()
+                        .filter(r -> r.isSuccess() && r.getApplication() != null)
+                        .map(r -> r.getApplication().getEndpoints())
+                        .filter(Objects::nonNull)
+                        .flatMap(List::stream)
+                        .collect(Collectors.toList());
+
+                mapper.enrichEndpoints(allEndpoints);
+            }
             
             // Phase 3: Générer les rapports
             log.info("Phase 3: Génération des rapports...");

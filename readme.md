@@ -79,6 +79,8 @@ run.bat --source=C:\weblogic\deployments --output=C:\analysis\results
 | `--app-name` | Analyser une application spécifique | Toutes les applications |
 | `--parallel` | Activer l'analyse parallèle | `true` |
 | `--deep` | Analyse approfondie | `false` |
+| `--business-functions-file` | Fichier CSV associant fonctions d'affaire et URLs (ex: "MaFonction;http://...") | `null`              |
+
 
 ### Exemples d'utilisation
 
@@ -96,6 +98,13 @@ run.bat --source=C:\weblogic\deployments --output=C:\analysis\results
 ```bash
 ./run.sh report --input=/path/to/previous/analysis --format=excel
 ```
+
+#### Analyse avec association fonction d'affaire
+Utilisez l'option `--business-functions-file` pour spécifier le chemin de votre fichier :
+```bash
+./run.sh --source=/apps --business-functions-file=./fonctions.csv
+```
+L'analyseur tentera de faire correspondre les URLs du fichier avec les endpoints détectés, même s'ils contiennent des variables de chemin (ex: /customer/{id}).
 
 ## ⚙️ Configuration
 
@@ -143,6 +152,16 @@ analyzer:
     memory-limit: "4G"
 ```
 
+## ✨ Association avec les Fonctions d'Affaire
+
+Vous pouvez enrichir l'analyse en fournissant un fichier qui mappe des fonctions d'affaire à des URLs de production. Cela permet de créer des rapports orientés métier.
+
+### Format du fichier
+
+Le fichier doit être un simple fichier texte (ex: `.csv` ou `.txt`) où chaque ligne contient une fonction et une URL, séparées par un point-virgule (`;`).
+
+**Exemple (`fonctions.csv`):**
+
 ## 📊 Structure des résultats
 
 ```
@@ -177,6 +196,7 @@ analysis-output/
 - **Matrice des dépendances** : Vue croisée applications/dépendances
 - **Technologies utilisées** : Inventaire des frameworks et outils
 - **Statistiques détaillées** : Métriques avancées
+- **Fonctions d'Affaire** :  Liste de tous les endpoints regroupés par fonction d'affaire, si le fichier est fourni.
 
 ### Rapport par application
 - **Résumé** : Informations générales et statistiques

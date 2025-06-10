@@ -20,6 +20,7 @@ public class Endpoint {
     private String id;
     private String applicationName;
     private String moduleName;
+    private String businessFunction;
     private String className;
     private String methodName;
     private String url;

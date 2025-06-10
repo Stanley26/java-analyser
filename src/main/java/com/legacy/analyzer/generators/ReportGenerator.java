@@ -73,6 +73,9 @@ public class ReportGenerator {
         
         // Feuille 6: Statistiques détaillées
         createDetailedStatisticsSheet(workbook, results, headerStyle, dataStyle, numberStyle);
+
+        // Feuille 7: Fonctions d'Affaire
+        createBusinessFunctionSheet(workbook, results, headerStyle, dataStyle);
         
         // Sauvegarder le fichier
         Path reportFile = reportsDir.resolve("global-analysis-report.xlsx");
@@ -82,6 +85,66 @@ public class ReportGenerator {
         workbook.close();
         
         log.info("Rapport global généré: {}", reportFile);
+    }
+
+    private void createBusinessFunctionSheet(XSSFWorkbook workbook, List<AnalysisResult> results, CellStyle headerStyle, CellStyle dataStyle) {
+        
+        List<Endpoint> endpointsWithFunction = results.stream()
+                .filter(r -> r.isSuccess() && r.getApplication() != null && r.getApplication().getEndpoints() != null)
+                .flatMap(r -> r.getApplication().getEndpoints().stream())
+                .filter(e -> e.getBusinessFunction() != null && !e.getBusinessFunction().isEmpty())
+                .collect(Collectors.toList());
+
+        if (endpointsWithFunction.isEmpty()) {
+            return; // Ne pas créer la feuille si aucune fonction n'a été associée
+        }
+
+        XSSFSheet sheet = workbook.createSheet("Fonctions d'Affaire");
+        int rowNum = 0;
+
+        Row titleRow = sheet.createRow(rowNum++);
+        Cell titleCell = titleRow.createCell(0);
+        titleCell.setCellValue("Endpoints par Fonction d'Affaire");
+        titleCell.setCellStyle(createTitleStyle(workbook));
+        sheet.addMergedRegion(new CellRangeAddress(0, 0, 0, 5));
+        rowNum++;
+
+        // En-têtes
+        Row headerRow = sheet.createRow(rowNum++);
+        String[] headers = {"Fonction d'Affaire", "Application", "URL de l'Endpoint", "Méthodes HTTP", "Classe Java", "Méthode Java"};
+        for (int i = 0; i < headers.length; i++) {
+            Cell cell = headerRow.createCell(i);
+            cell.setCellValue(headers[i]);
+            cell.setCellStyle(headerStyle);
+        }
+
+        Map<String, List<Endpoint>> groupedByFunction = endpointsWithFunction.stream()
+                .collect(Collectors.groupingBy(Endpoint::getBusinessFunction, TreeMap::new, Collectors.toList()));
+        
+        for (Map.Entry<String, List<Endpoint>> entry : groupedByFunction.entrySet()) {
+            String functionName = entry.getKey();
+            List<Endpoint> endpoints = entry.getValue();
+            int firstRowForFunction = rowNum;
+
+            for (Endpoint endpoint : endpoints) {
+                Row row = sheet.createRow(rowNum++);
+                row.createCell(0).setCellValue(functionName);
+                row.createCell(1).setCellValue(endpoint.getApplicationName());
+                row.createCell(2).setCellValue(endpoint.getUrl());
+                row.createCell(3).setCellValue(endpoint.getHttpMethods() != null ? endpoint.getHttpMethods().stream().map(Enum::toString).collect(Collectors.joining(", ")) : "");
+                row.createCell(4).setCellValue(endpoint.getClassName());
+                row.createCell(5).setCellValue(endpoint.getMethodName());
+            }
+
+            if (endpoints.size() > 1) {
+                sheet.addMergedRegion(new CellRangeAddress(firstRowForFunction, rowNum - 1, 0, 0));
+                sheet.getRow(firstRowForFunction).getCell(0).getCellStyle().setVerticalAlignment(VerticalAlignment.CENTER);
+            }
+        }
+        
+        for (int i = 0; i < headers.length; i++) {
+            sheet.autoSizeColumn(i);
+        }
     }
     
     private void createOverviewSheet(XSSFWorkbook workbook, List<AnalysisResult> results,
