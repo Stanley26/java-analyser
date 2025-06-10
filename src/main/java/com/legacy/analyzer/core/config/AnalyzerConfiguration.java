@@ -40,6 +40,9 @@ public class AnalyzerConfiguration {
     private boolean deepAnalysis = false;
     private String targetApplication;
     
+    @Value("${server.port:8080}")
+    private int serverPort;
+    
     @Data
     public static class SourceConfig {
         private String rootDirectory;

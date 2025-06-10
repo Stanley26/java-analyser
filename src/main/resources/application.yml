@@ -3,7 +3,10 @@ spring:
     name: legacy-analyzer
   main:
     banner-mode: off
-    web-application-type: none
+    web-application-type: servlet # 'none' ou 'servlet'
+
+server:
+  port: 8080
 
 logging:
   level:

@@ -47,6 +47,10 @@ dependencies {
     implementation 'org.apache.commons:commons-lang3:3.14.0'
     implementation 'commons-io:commons-io:2.15.1'
     implementation 'org.apache.commons:commons-collections4:4.4'
+
+    // Spring Boot Web
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
     
     // Logging
     implementation 'ch.qos.logback:logback-classic'

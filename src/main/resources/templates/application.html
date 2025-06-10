@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="fr" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title th:text="'Détails - ' + ${appName}"></title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div class="container">
+    <a href="/">&larr; Retour au tableau de bord</a>
+    <h1 th:text="'Détails de l\'application : ' + ${appName}"></h1>
+
+    <div th:if="${error}" class="error-box">
+        <p th:text="${error}"></p>
+    </div>
+
+    <div th:if="${appInfo}">
+        <h2>Informations Générales</h2>
+        <ul>
+            <li><strong>Nom :</strong> <span th:text="${appInfo.name}"></span></li>
+            <li><strong>Type :</strong> <span th:text="${appInfo.type}"></span></li>
+            <li><strong>Frameworks :</strong>
+                <span th:each="fw : ${appInfo.frameworks}" th:text="${fw}" class="badge"></span>
+            </li>
+        </ul>
+
+        <h2>Endpoints</h2>
+        <div th:if="${endpoints != null and not #lists.isEmpty(endpoints)}">
+            <table>
+                <thead>
+                <tr>
+                    <th>URL</th>
+                    <th>Méthodes HTTP</th>
+                    <th>Classe</th>
+                    <th>Méthode Java</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="ep : ${endpoints}">
+                    <td th:text="${ep.url}"></td>
+                    <td>
+                        <span th:each="m : ${ep.httpMethods}" th:text="${m}" class="badge-method" th:classappend="${'method-' + #strings.toLowerCase(m)}"></span>
+                    </td>
+                    <td th:text="${ep.className}"></td>
+                    <td th:text="${ep.methodName}"></td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+        <div th:if="${endpoints == null or #lists.isEmpty(endpoints)}">
+            <p>Aucun endpoint trouvé pour cette application.</p>
+        </div>
+    </div>
+</div>
+</body>
+</html>

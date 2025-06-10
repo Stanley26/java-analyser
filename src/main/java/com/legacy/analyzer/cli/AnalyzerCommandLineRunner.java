@@ -31,6 +31,15 @@ public class AnalyzerCommandLineRunner implements CommandLineRunner, ExitCodeGen
         
         // Exécuter la commande
         exitCode = commandLine.execute(args);
+
+        boolean isServeCommand = commandLine.getParseResult().subcommand() != null &&
+                                 commandLine.getParseResult().subcommand().commandSpec().name().equals("serve");
+        
+        if (isServeCommand) {
+            // Pour la commande 'serve', on ne veut pas générer de code de sortie,
+            // pour que Spring Boot ne termine pas l'application.
+            // On entre dans une attente pour que le serveur continue de tourner.
+            Thread.currentThread().join();
     }
     
     @Override

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="fr" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Legacy Analyzer - Tableau de Bord</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Tableau de Bord - Legacy Analyzer</h1>
+        <p>Résultats de l'analyse du répertoire : <code th:text="${outputDir}"></code></p>
+
+        <div th:if="${error}" class="error-box">
+            <p th:text="${error}"></p>
+        </div>
+
+        <div th:if="${not #lists.isEmpty(applications)}">
+            <h2>Applications Analysées</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Nom de l'Application</th>
+                        <th>Type</th>
+                        <th>Frameworks</th>
+                        <th>Détails</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr th:each="app : ${applications}">
+                        <td th:text="${app.name}">MonApp.ear</td>
+                        <td th:text="${app.type}">EAR</td>
+                        <td>
+                            <span th:each="fw : ${app.frameworks}" th:text="${fw}" class="badge"></span>
+                        </td>
+                        <td>
+                            <a th:href="@{/application/{name}(name=${app.name})}" class="button">Voir les détails</a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <div th:if="${#lists.isEmpty(applications)} and !${error}">
+            <p class="info-box">Aucune application analysée trouvée. Exécutez d'abord la commande 'analyze'.</p>
+        </div>
+    </div>
+</body>
+</html>

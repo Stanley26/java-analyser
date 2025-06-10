@@ -25,7 +25,8 @@ import java.util.concurrent.Callable;
     subcommands = {
         AnalyzerCommand.AnalyzeCommand.class,
         AnalyzerCommand.ReportCommand.class,
-        AnalyzerCommand.ValidateCommand.class
+        AnalyzerCommand.ValidateCommand.class,
+        AnalyzerCommand.ServeCommand.class
     }
 )
 public class AnalyzerCommand implements Callable<Integer> {
@@ -108,6 +109,30 @@ public class AnalyzerCommand implements Callable<Integer> {
                 log.error("Erreur lors de l'analyse", e);
                 return 1;
             }
+        }
+    }
+
+    @Component
+    @Command(name = "serve", description = "Démarre le serveur web pour visualiser les résultats.")
+    @RequiredArgsConstructor
+    public static class ServeCommand implements Callable<Integer> {
+        
+        private final AnalyzerConfiguration configuration;
+
+        @Override
+        public Integer call() throws Exception {
+            log.info("=======================================================================");
+            log.info(" Démarrage du serveur web de visualisation...");
+            log.info(" ");
+            log.info("  -> Accédez au tableau de bord : http://localhost:{}", configuration.getServerPort());
+            log.info("  -> Répertoire des résultats   : {}", configuration.getOutputDirectory().toAbsolutePath());
+            log.info(" ");
+            log.info(" Utilisez Ctrl+C pour arrêter le serveur.");
+            log.info("=======================================================================");
+
+            // On laisse le thread principal se terminer, le serveur Tomcat tournera en arrière-plan
+            // et maintiendra l'application en vie.
+            return 0;
         }
     }
 

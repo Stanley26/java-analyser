@@ -1,6 +1,6 @@
 # Legacy Analyzer
 
-Application d'analyse automatique d'applications Java legacy déployées sur WebLogic.
+Application d'analyse statique et de visualisation pour les écosystèmes d'applications Java legacy déployées sur WebLogic.
 
 ## 🎯 Objectifs
 
@@ -14,24 +14,15 @@ Legacy Analyzer est conçu pour analyser automatiquement un écosystème complet
 
 ## 🚀 Fonctionnalités
 
-### Frameworks supportés
-- ✅ Servlets (2.5, 3.0, 3.1, 4.0)
-- ✅ Struts (1.x, 2.x)
-- ✅ Spring MVC (2.x, 3.x, 4.x, 5.x)
-- ✅ JAX-RS (Jersey, RestEasy, CXF)
-- ⚠️ JSF (support basique)
+### Analyse Statique
+- **Frameworks supportés :** Servlets, Struts (1.x, 2.x), Spring MVC, JAX-RS.
+- **Dépendances détectées :** Bases de données (JDBC, ORM), EJB (2.x, 3.x), COBOL, Web Services (SOAP/REST), JMS, accès aux fichiers.
+- **Génération de rapports :** Fichiers JSON structurés, rapports Excel détaillés, et diagrammes (UML, Graphes).
 
-### Types de dépendances détectées
-- **Bases de données** : JDBC, Hibernate, JPA, MyBatis
-- **EJB** : 2.x et 3.x, lookups JNDI
-- **Cobol** : connexions socket, JNI, transferts de fichiers, MQ
-- **Web Services** : SOAP (JAX-WS, CXF, Axis) et REST
-- **JMS** : Queues, Topics, Message-Driven Beans
-- **Fichiers** : accès locaux et partagés
-
-### Formats de sortie
-- **JSON** : Données structurées pour traitement ultérieur
-- **Excel** : Rapports détaillés avec graphiques et statistiques
+### Interface Web de Visualisation
+- Un tableau de bord pour naviguer dans les résultats de l'analyse.
+- Une vue détaillée pour chaque application (endpoints, dépendances...).
+- Accessible simplement via un navigateur après avoir lancé la commande `serve`.
 
 ## 📋 Prérequis
 
@@ -58,18 +49,21 @@ gradlew.bat bootJar
 ```
 
 ## 📖 Utilisation
+- L'application fonctionne maintenant en deux temps : d'abord l'analyse, puis la visualisation.
 
 ### Commande de base
+
+### Étape 1:Lancer l'analyse
 ```bash
-./run.sh --source=/path/to/weblogic/deployments --output=/path/to/results
+./run.sh analyze --source=/path/to/weblogic/deployments --output=/path/to/results
 ```
 
 Sous Windows :
 ```cmd
-run.bat --source=C:\weblogic\deployments --output=C:\analysis\results
+run.bat analyze --source=C:\weblogic\deployments --output=C:\analysis\results
 ```
 
-### Options disponibles
+### Options disponibles pour la commande analyse
 
 | Option | Description | Valeur par défaut |
 |--------|-------------|-------------------|
@@ -81,6 +75,15 @@ run.bat --source=C:\weblogic\deployments --output=C:\analysis\results
 | `--deep` | Analyse approfondie | `false` |
 | `--business-functions-file` | Fichier CSV associant fonctions d'affaire et URLs (ex: "MaFonction;http://...") | `null`              |
 
+
+### Étape 2:Visualiser les résultats
+- Une fois l'analyse terminée, utilisez la commande serve pour démarrer le serveur web. Cette commande n'a pas d'options.
+
+```bash
+./run.sh serve
+```
+- Ouvrez ensuite votre navigateur et allez à l'adresse http://localhost:8080.
+- Pour arrêter le serveur, retournez à votre terminal et appuyez sur Ctrl+C.
 
 ### Exemples d'utilisation
 
@@ -111,6 +114,16 @@ L'analyseur tentera de faire correspondre les URLs du fichier avec les endpoints
 ### Fichier de configuration (analyzer-config.yml)
 
 ```yaml
+spring:
+  application:
+    name: legacy-analyzer
+  main:
+    banner-mode: off
+    web-application-type: servlet  # Doit être 'servlet' pour l'interface web ou 'analyse'
+
+server:
+  port: 8080 # Port pour l'interface web de visualisation
+
 analyzer:
   source:
     root-directory: "/path/to/weblogic/deployments"
@@ -269,6 +282,7 @@ Pour toute question ou problème :
 ## 🔄 Versions
 
 ### v1.0.0 (Version actuelle)
+- Interface Web de visualisation (Thymeleaf)
 - Support complet Servlets, Struts, Spring MVC, JAX-RS
 - Détection des dépendances BD, EJB, Cobol, WS, JMS
 - Génération de pseudo-code
