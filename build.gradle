@@ -53,6 +53,16 @@ dependencies {
     
     // CLI Support
     implementation 'info.picocli:picocli-spring-boot-starter:4.7.5'
+
+    // PlantUML pour la génération de diagrammes UML
+    implementation 'net.sourceforge.plantuml:plantuml:1.2024.0'
+    
+    // Graphviz Java pour la génération de graphiques (optionnel)
+    implementation 'guru.nidi:graphviz-java:0.18.1'
+    
+    // Pour la génération de graphiques avancés
+    implementation 'org.jgrapht:jgrapht-core:1.5.2'
+    implementation 'org.jgrapht:jgrapht-io:1.5.2'
     
     // Testing
     testImplementation 'org.springframework.boot:spring-boot-starter-test'

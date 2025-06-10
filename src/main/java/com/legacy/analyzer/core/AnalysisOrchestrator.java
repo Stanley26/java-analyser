@@ -5,6 +5,8 @@ import com.legacy.analyzer.extractors.EndpointExtractorManager;
 import com.legacy.analyzer.extractors.DependencyExtractorManager;
 import com.legacy.analyzer.generators.PseudoCodeGenerator;
 import com.legacy.analyzer.generators.ReportGenerator;
+import com.legacy.analyzer.generators.UMLDiagramGenerator;
+import com.legacy.analyzer.generators.DependencyGraphGenerator;
 import com.legacy.analyzer.model.AnalysisResult;
 import com.legacy.analyzer.model.WebLogicApplication;
 import com.legacy.analyzer.persistence.ResultsPersistence;
@@ -36,6 +38,8 @@ public class AnalysisOrchestrator {
     private final PseudoCodeGenerator pseudoCodeGenerator;
     private final ResultsPersistence resultsPersistence;
     private final ReportGenerator reportGenerator;
+    private final UMLDiagramGenerator umlDiagramGenerator;
+    private final DependencyGraphGenerator dependencyGraphGenerator;
     
     public void performAnalysis() throws IOException {
         LocalDateTime startTime = LocalDateTime.now();
@@ -271,6 +275,18 @@ public class AnalysisOrchestrator {
         if ("all".equals(format) || "json".equals(format)) {
             log.info("Génération du rapport JSON global...");
             resultsPersistence.saveGlobalResults(results);
+        }
+        
+        // NOUVEAU : Génération des diagrammes UML
+        if ("all".equals(format) || "uml".equals(format)) {
+            log.info("Génération des diagrammes UML...");
+            umlDiagramGenerator.generateUMLDiagrams(results, configuration.getOutputDirectory());
+        }
+        
+        // NOUVEAU : Génération des graphiques de dépendances
+        if ("all".equals(format) || "graphs".equals(format)) {
+            log.info("Génération des graphiques de dépendances...");
+            dependencyGraphGenerator.generateDependencyGraphs(results, configuration.getOutputDirectory());
         }
     }
     
