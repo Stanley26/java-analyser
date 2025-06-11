@@ -1,6 +1,7 @@
 package com.analyzer.parsers.framework;
 
 import com.analyzer.model.technical.Endpoint;
+import com.analyzer.model.technical.EndpointDetails;
 import com.analyzer.model.technical.SourceLocation;
 import com.analyzer.parsers.common.EntryPointParser;
 import org.w3c.dom.Document;
@@ -17,13 +18,26 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Un parseur de point d'entrée qui analyse les descripteurs de déploiement Java EE (web.xml).
+ * Il identifie les déclarations de Servlets et leurs mappings d'URL.
+ */
 public class ServletXmlParser implements EntryPointParser {
 
+    /**
+     * Indique que ce parseur ne s'intéresse qu'au fichier standard de configuration web Java EE.
+     */
     @Override
     public boolean supports(File file) {
         return file.getName().equals("web.xml");
     }
 
+    /**
+     * Analyse le fichier web.xml pour en extraire les servlets et leurs mappings.
+     * @param xmlFile Le fichier web.xml à analyser.
+     * @param projectRoot Le chemin racine du projet pour contextualiser les chemins de fichiers.
+     * @return Une liste d'objets Endpoint trouvés.
+     */
     @Override
     public List<Endpoint> parse(File xmlFile, Path projectRoot) {
         List<Endpoint> endpoints = new ArrayList<>();
@@ -36,7 +50,7 @@ public class ServletXmlParser implements EntryPointParser {
             Document doc = dBuilder.parse(xmlFile);
             doc.getDocumentElement().normalize();
 
-            // Étape 1: Mapper les noms de servlet à leurs classes
+            // Étape 1: Créer une carte qui associe un nom de servlet à sa classe Java.
             NodeList servletList = doc.getElementsByTagName("servlet");
             for (int i = 0; i < servletList.getLength(); i++) {
                 Node node = servletList.item(i);
@@ -50,7 +64,8 @@ public class ServletXmlParser implements EntryPointParser {
                 }
             }
 
-            // Étape 2: Mapper les URL patterns aux noms de servlet, et construire les Endpoints
+            // Étape 2: Parcourir les mappings d'URL. Pour chaque mapping, utiliser la carte
+            // précédente pour trouver la classe et ainsi construire l'objet Endpoint complet.
             NodeList mappingList = doc.getElementsByTagName("servlet-mapping");
             for (int i = 0; i < mappingList.getLength(); i++) {
                 Node node = mappingList.item(i);
@@ -63,15 +78,18 @@ public class ServletXmlParser implements EntryPointParser {
                         Endpoint endpoint = new Endpoint();
                         endpoint.framework = "Java Servlet";
                         endpoint.fullUrl = urlPattern;
-                        endpoint.httpMethod = "GET/POST"; // Les servlets gèrent toutes les méthodes par défaut
+                        endpoint.httpMethod = "GET/POST"; // Les servlets gèrent toutes les méthodes par défaut via service()
 
-                        endpoint.details.controllerClass = servletNameToClass.get(servletName);
-                        endpoint.details.handlerMethod = "service(req, res)"; // Méthode de base
+                        EndpointDetails details = new EndpointDetails();
+                        details.controllerClass = servletNameToClass.get(servletName);
+                        details.handlerMethod = "service(HttpServletRequest, HttpServletResponse)"; // Méthode standard
 
-                        endpoint.details.sourceLocation = new SourceLocation();
-                        endpoint.details.sourceLocation.file = projectRoot.relativize(xmlFile.toPath()).toString();
-                        endpoint.details.sourceLocation.lineNumber = 0; // Difficile à déterminer pour une balise XML
-
+                        SourceLocation location = new SourceLocation();
+                        location.file = projectRoot.relativize(xmlFile.toPath()).toString();
+                        location.lineNumber = 0; // La localisation précise est difficile à déterminer
+                        details.sourceLocation = location;
+                        
+                        endpoint.details = details;
                         endpoints.add(endpoint);
                     }
                 }
@@ -83,6 +101,12 @@ public class ServletXmlParser implements EntryPointParser {
         return endpoints;
     }
 
+    /**
+     * Méthode utilitaire pour extraire le contenu textuel d'une balise enfant.
+     * @param parent L'élément XML parent.
+     * @param tagName Le nom de la balise enfant.
+     * @return Le texte contenu dans la balise, ou null s'il n'est pas trouvé.
+     */
     private String getElementTextContent(Element parent, String tagName) {
         NodeList nodeList = parent.getElementsByTagName(tagName);
         if (nodeList.getLength() > 0) {
