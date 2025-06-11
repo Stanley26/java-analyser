@@ -1,51 +1,72 @@
 plugins {
-    `java-library`
-    application
+    // Le plugin java-library est la base pour un projet Java.
+    id 'java-library'
+    // Le plugin application permet de créer un exécutable.
+    id 'application'
 }
 
-group = "com.analyzer"
-version = "1.0-SNAPSHOT"
+// Informations de base sur le projet.
+group = 'com.analyzer'
+version = '1.0-SNAPSHOT'
 
+// Définition de la version de Java à utiliser pour la compilation.
+sourceCompatibility = JavaVersion.VERSION_21
+targetCompatibility = JavaVersion.VERSION_21
+
+// Déclaration du dépôt où Gradle doit chercher les librairies (dépendances).
 repositories {
     mavenCentral()
 }
 
+// Liste de toutes les librairies externes nécessaires au projet.
 dependencies {
-    // Bibliothèque pour parser le code source Java
-    implementation("com.github.javaparser:javaparser-symbol-solver-core:3.25.10")
+    // Bibliothèque pour parser le code source Java et résoudre les types.
+    implementation 'com.github.javaparser:javaparser-symbol-solver-core:3.25.10'
 
-    // Bibliothèque pour générer les rapports JSON
-    implementation("com.fasterxml.jackson.core:jackson-databind:2.17.1")
-    implementation("com.fasterxml.jackson.core:jackson-core:2.17.1")
-    implementation("com.fasterxml.jackson.core:jackson-annotations:2.17.1")
+    // Bibliothèque pour générer les rapports JSON.
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.17.1'
+    implementation 'com.fasterxml.jackson.core:jackson-core:2.17.1'
+    implementation 'com.fasterxml.jackson.core:jackson-annotations:2.17.1'
 
-    // Bibliothèque pour créer une application en ligne de commande (CLI) robuste
-    implementation("info.picocli:picocli:4.7.6")
-    annotationProcessor("info.picocli:picocli-codegen:4.7.6")
+    // Bibliothèque pour créer une application en ligne de commande (CLI) robuste.
+    implementation 'info.picocli:picocli:4.7.6'
+    annotationProcessor 'info.picocli:picocli-codegen:4.7.6'
 
-    // Dépendance pour les tests
-    testImplementation(platform("org.junit:junit-bom:5.10.0"))
-    testImplementation("org.junit.jupiter:junit-jupiter")
+    // Dépendances pour les tests unitaires.
+    testImplementation platform('org.junit:junit-bom:5.10.0')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
 }
 
+// Configuration du plugin 'application'.
 application {
-    mainClass.set("com.analyzer.Main")
+    // Spécifie la classe principale à exécuter lorsque le JAR est lancé.
+    mainClass = 'com.analyzer.Main'
 }
 
-tasks.withType<JavaCompile> {
-    options.encoding = "UTF-8"
+// Tâches de configuration supplémentaires.
+tasks.withType(JavaCompile) {
+    // S'assure que les fichiers sont lus et écrits en UTF-8 pour éviter les problèmes d'encodage.
+    options.encoding = 'UTF-8'
 }
 
-tasks.withType<Test> {
+tasks.withType(Test) {
+    // Configure Gradle pour utiliser la plateforme de test JUnit 5.
     useJUnitPlatform()
 }
 
-// Configuration pour créer un "fat JAR" qui inclut toutes les dépendances
-tasks.jar {
+// Configuration de la tâche 'jar' pour créer un "fat JAR"
+// qui inclut toutes les dépendances nécessaires à l'exécution.
+jar {
     manifest {
         attributes(
-            "Main-Class" to "com.analyzer.Main"
+            'Main-Class': 'com.analyzer.Main'
         )
     }
-    from(configurations.runtimeClasspath.get().map { if (it.isDirectory) it else zipTree(it) })
+    from {
+        configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
+    }
+
+    // Stratégie pour gérer les fichiers en double lors de la création du "fat JAR".
+    // On exclut les fichiers de métadonnées qui causent souvent des conflits.
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
