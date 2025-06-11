@@ -1,52 +1,44 @@
-// parsers/common/EntryPointParser.java
 package com.analyzer.parsers.common;
 
-import com.analyzer.model.technical.AnalysisReport;
+import com.analyzer.model.technical.Endpoint;
 import java.io.File;
 import java.nio.file.Path;
 import java.util.List;
 
 /**
- * Interface pour les parseurs qui découvrent les points d'entrée d'une application
- * (ex: Endpoints Spring, Actions Struts).
+ * Définit le contrat pour tout parseur dont la mission est de découvrir
+ * les points d'entrée d'une application.
+ *
+ * Un "point d'entrée" est un composant qui peut être appelé de l'extérieur,
+ * comme un endpoint REST, une action Struts, ou un Servlet.
+ *
+ * Chaque classe qui implémente cette interface est spécialisée dans la
+ * détection des points d'entrée pour une technologie spécifique.
  */
 public interface EntryPointParser {
-    
+
     /**
-     * Indique si ce parseur est intéressé par l'analyse de ce fichier.
+     * Détermine si ce parseur est capable et intéressé par l'analyse
+     * du fichier fourni.
+     *
+     * <p>Exemple: Un {@code SpringAnnotationParser} retournerait {@code true} pour un fichier
+     * {@code .java}, tandis qu'un {@code StrutsXmlParser} retournerait {@code true}
+     * pour un fichier nommé {@code struts-config.xml}.</p>
+     *
      * @param file Le fichier à tester.
-     * @return true si le parseur doit être exécuté, false sinon.
+     * @return {@code true} si le parseur doit analyser ce fichier, {@code false} sinon.
      */
     boolean supports(File file);
 
     /**
-     * Analyse un fichier et retourne une liste de points d'entrée trouvés.
+     * Analyse un fichier et en extrait une liste de points d'entrée.
+     * Si le fichier ne contient aucun point d'entrée pertinent pour ce parseur,
+     * la méthode retourne une liste vide.
+     *
      * @param file Le fichier à analyser.
-     * @param projectRoot Le chemin racine du projet.
-     * @return Une liste d'objets Endpoint trouvés dans ce fichier.
+     * @param projectRoot Le chemin racine du projet en cours d'analyse, utile pour
+     * calculer les chemins de fichiers relatifs.
+     * @return Une liste d'objets {@link Endpoint} trouvés dans ce fichier. Ne retourne jamais {@code null}.
      */
-    List<com.analyzer.model.technical.Endpoint> parse(File file, Path projectRoot);
-}
-```java
-// parsers/common/DependencyParser.java
-package com.analyzer.parsers.common;
-
-import com.analyzer.model.technical.ExternalCall;
-import com.github.javaparser.ast.body.MethodDeclaration;
-import com.github.javaparser.ast.body.TypeDeclaration;
-import java.util.List;
-
-/**
- * Interface pour les parseurs qui analysent le contenu d'une méthode
- * pour trouver des dépendances (ex: appels JDBC, EJB).
- */
-public interface DependencyParser {
-
-    /**
-     * Analyse une déclaration de méthode pour y trouver des dépendances.
-     * @param method La méthode à analyser.
-     * @param enclosingClass La classe contenant la méthode.
-     * @return Une liste d'appels externes trouvés dans cette méthode.
-     */
-    List<ExternalCall> findDependencies(MethodDeclaration method, TypeDeclaration<?> enclosingClass);
+    List<Endpoint> parse(File file, Path projectRoot);
 }
