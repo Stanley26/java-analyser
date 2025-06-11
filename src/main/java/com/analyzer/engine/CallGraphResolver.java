@@ -17,35 +17,23 @@ import java.io.File;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.Optional;
 
 /**
  * Résout le graphe d'appels à partir d'une méthode de point d'entrée
  * et analyse chaque méthode visitée pour y trouver des dépendances.
- * C'est le cœur de l'analyse en profondeur.
  */
 public class CallGraphResolver {
 
     private final List<DependencyParser> dependencyParsers;
     private final JavaProjectIndexer indexer;
 
-    /**
-     * Construit un nouveau résolveur de graphe d'appels.
-     * La configuration du Symbol Solver est cruciale ici. Il permet à JavaParser
-     * de comprendre les types et de lier les appels de méthode à leurs déclarations.
-     *
-     * @param dependencyParsers La liste des parseurs de dépendances (JDBC, EJB, etc.).
-     * @param indexer L'index pré-calculé du projet pour une recherche rapide des méthodes.
-     * @param projectDir Le répertoire du projet en cours d'analyse.
-     */
     public CallGraphResolver(List<DependencyParser> dependencyParsers, JavaProjectIndexer indexer, File projectDir) {
         this.dependencyParsers = dependencyParsers;
         this.indexer = indexer;
 
-        // Configuration du Symbol Solver de JavaParser. C'est ce qui rend l'analyse fiable.
         CombinedTypeSolver typeSolver = new CombinedTypeSolver();
-        // Le ReflectionTypeSolver peut résoudre les types du JDK (ex: java.lang.String).
         typeSolver.add(new ReflectionTypeSolver());
-        // Le JavaParserTypeSolver peut résoudre les types définis dans notre propre code source.
         File sourceDir = new File(projectDir, "src/main/java");
         if (sourceDir.exists()) {
              typeSolver.add(new JavaParserTypeSolver(sourceDir));
@@ -70,10 +58,23 @@ public class CallGraphResolver {
      * @param visitedMethods Un ensemble pour garder la trace des méthodes déjà visitées et éviter les boucles infinies.
      */
     private void resolveRecursively(MethodDeclaration currentMethod, EndpointDetails endpointDetails, Set<String> visitedMethods) {
+        // --- BLOC DE CODE CORRIGÉ ---
+
+        // 1. Obtenir la signature de la méthode actuelle.
         String methodSignature = currentMethod.getSignature().asString();
+        
+        // 2. Trouver le nom complet de la classe contenant la méthode.
+        // On s'assure que la chaîne de Optional est correctement résolue en une String.
         String className = currentMethod.findAncestor(TypeDeclaration.class)
                 .flatMap(TypeDeclaration::getFullyQualifiedName)
-                .orElse(""); // Fournir une chaîne vide si le nom n'est pas trouvé.
+                .orElse(""); // Si le nom n'est pas trouvé, on retourne une chaîne vide.
+
+        // Si le nom de la classe est vide, on ne peut pas continuer.
+        if (className.isEmpty()) {
+            return;
+        }
+
+        // 3. Créer une clé unique pour cette méthode afin d'éviter les cycles.
         String methodKey = className + "." + methodSignature;
 
         if (visitedMethods.contains(methodKey)) {
@@ -81,14 +82,18 @@ public class CallGraphResolver {
         }
         visitedMethods.add(methodKey);
 
-        // Étape 1: Analyser la méthode actuelle pour y trouver des dépendances directes (JDBC, EJB...).
-        currentMethod.findAncestor(TypeDeclaration.class).ifPresent(enclosingClass -> {
+        // --- FIN DU BLOC CORRIGÉ ---
+
+        // Étape 1 : Analyser la méthode actuelle pour les dépendances directes
+        Optional<TypeDeclaration<?>> enclosingClassOpt = currentMethod.findAncestor(TypeDeclaration.class);
+        if (enclosingClassOpt.isPresent()) {
+            TypeDeclaration<?> enclosingClass = enclosingClassOpt.get();
             for (DependencyParser parser : dependencyParsers) {
                 endpointDetails.externalCalls.addAll(parser.findDependencies(currentMethod, enclosingClass));
             }
-        });
+        }
 
-        // Étape 2: Trouver tous les appels de méthode dans le corps de la méthode actuelle.
+        // Étape 2 : Trouver tous les appels de méthode dans le corps de la méthode actuelle.
         currentMethod.findAll(MethodCallExpr.class).forEach(call -> {
             try {
                 // Tente de "résoudre" l'appel pour trouver la déclaration exacte de la méthode appelée.
@@ -97,7 +102,6 @@ public class CallGraphResolver {
                 String targetMethodSignature = resolvedMethod.getSignature();
 
                 // Vérifier si la méthode appelée fait partie de notre code (grâce à l'index)
-                // et n'est pas une méthode d'une librairie externe (ex: java.util.List.add).
                 MethodDeclaration nextMethod = indexer.getMethod(targetClassName, targetMethodSignature);
                 if (nextMethod != null) {
                     // La méthode fait partie de notre projet, on l'ajoute au rapport et on continue l'exploration.
@@ -105,8 +109,7 @@ public class CallGraphResolver {
                     resolveRecursively(nextMethod, endpointDetails, visitedMethods);
                 }
             } catch (UnsolvedSymbolException | UnsupportedOperationException e) {
-                // C'est normal d'avoir des erreurs de résolution pour les librairies externes
-                // ou pour du code trop dynamique. On ignore ces cas et on continue l'analyse.
+                // Ignorer les appels qui ne peuvent pas être résolus (librairies externes, etc.)
             }
         });
     }
