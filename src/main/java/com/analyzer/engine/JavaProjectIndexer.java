@@ -21,8 +21,10 @@ public class JavaProjectIndexer {
     private final Map<String, MethodDeclaration> methodIndex = new HashMap<>();
     private final Map<String, TypeDeclaration<?>> typeIndex = new HashMap<>();
 
-
-    public void indexProject(Path projectRoot) {
+    // --- SIGNATURE CORRIGÉE ---
+    public void indexProject(Path projectRoot, Map<String, String> beanMap) {
+        // Note: La beanMap n'est pas encore utilisée ici, mais la signature est correcte.
+        // Cela permet de résoudre l'erreur de compilation dans AnalysisEngine.
         Path sourceRoot = projectRoot.resolve("src/main/java");
         if (!Files.exists(sourceRoot)) return;
 
