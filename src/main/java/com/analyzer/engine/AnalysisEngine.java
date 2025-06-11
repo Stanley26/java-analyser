@@ -10,6 +10,7 @@ import com.analyzer.parsers.common.EjbParser;
 import com.analyzer.parsers.common.EntryPointParser;
 import com.analyzer.parsers.common.JdbcParser;
 import com.analyzer.parsers.config.PropertiesParser;
+import com.analyzer.parsers.config.SpringConfigParser;
 import com.analyzer.parsers.framework.ServletXmlParser;
 import com.analyzer.parsers.framework.SpringAnnotationParser;
 import com.analyzer.parsers.framework.StrutsXmlParser;
@@ -32,44 +33,53 @@ import java.util.stream.Stream;
  */
 public class AnalysisEngine {
 
-    // --- Configuration fields ---
+    // --- Champs de Configuration ---
     private final File projectsPath;
     private final File overridePath;
     private final File businessMapFile;
+    private final String springProfile;
     private final File outputDirectory;
 
-    // --- Core components ---
+    // --- Composants principaux ---
     private final ProjectScanner projectScanner;
     private final ConsoleProgressReporter progressReporter;
     private final JsonReportGenerator reportGenerator;
     private final BusinessMapParser businessMapParser;
     private final BusinessFunctionCorrelator correlator;
+    private final SpringConfigParser springConfigParser;
 
-    // --- Parser lists ---
+    // --- Listes de Parseurs ---
     private final List<EntryPointParser> entryPointParsers;
     private final List<DependencyParser> dependencyParsers;
     private final PropertiesParser propertiesParser;
 
-    public AnalysisEngine(File projectsPath, File overridePath, File businessMapFile, File outputDirectory) {
+    /**
+     * Constructeur du moteur d'analyse.
+     * Initialise tous les composants et enregistre les parseurs.
+     */
+    public AnalysisEngine(File projectsPath, File overridePath, File businessMapFile, String springProfile, File outputDirectory) {
         this.projectsPath = projectsPath;
         this.overridePath = overridePath;
         this.businessMapFile = businessMapFile;
+        this.springProfile = springProfile;
         this.outputDirectory = outputDirectory;
 
-        // Initialize components
+        // Initialisation des composants
         this.projectScanner = new ProjectScanner();
         this.progressReporter = new ConsoleProgressReporter();
         this.reportGenerator = new JsonReportGenerator();
         this.businessMapParser = new BusinessMapParser();
         this.correlator = new BusinessFunctionCorrelator();
         this.propertiesParser = new PropertiesParser();
+        this.springConfigParser = new SpringConfigParser();
 
-        // Register all our parsers
+        // Enregistrement de tous nos parseurs de points d'entrée
         this.entryPointParsers = List.of(
                 new SpringAnnotationParser(),
                 new StrutsXmlParser(),
                 new ServletXmlParser()
         );
+        // Enregistrement de tous nos parseurs de dépendances
         this.dependencyParsers = List.of(
                 new JdbcParser(),
                 new EjbParser()
@@ -77,7 +87,7 @@ public class AnalysisEngine {
     }
 
     /**
-     * Main method to run the entire analysis process.
+     * Méthode principale qui lance l'intégralité du processus d'analyse.
      */
     public void run() throws IOException {
         List<File> projectsToAnalyze = projectScanner.findProjects(projectsPath);
@@ -95,33 +105,35 @@ public class AnalysisEngine {
             File projectDir = projectsToAnalyze.get(i);
             progressReporter.startProject(projectDir.getName(), i + 1);
 
-            // Create a new report for the current project
             AnalysisReport report = new AnalysisReport(projectDir.getName());
             report.sourcePath = projectDir.getAbsolutePath();
 
-            // 1. Index the entire project for fast lookups
+            // 1. Analyser la configuration Spring pour la résolution d'interfaces
+            Map<String, String> beanMap = springConfigParser.buildBeanMap(projectDir, this.springProfile);
+
+            // 2. Créer l'index du projet pour une résolution rapide des méthodes
             progressReporter.reportStep(projectDir.getName(), "Création de l'index du code source...");
             JavaProjectIndexer indexer = new JavaProjectIndexer();
-            indexer.indexProject(projectDir.toPath());
+            indexer.indexProject(projectDir.toPath(), beanMap);
 
-            // 2. Parse configuration
+            // 3. Analyser la configuration .properties
             parseConfiguration(projectDir, report);
 
-            // 3. Phase 1: Discover all entry points (e.g., REST controllers, Struts actions)
+            // 4. Phase 1: Découvrir tous les points d'entrée
             progressReporter.reportStep(projectDir.getName(), "Phase 1: Découverte des points d'entrée...");
             discoverEntryPoints(projectDir, report);
 
-            // 4. Phase 2: Perform deep analysis using the call graph for each entry point
+            // 5. Phase 2: Analyser en profondeur chaque point d'entrée
             progressReporter.reportStep(projectDir.getName(), "Phase 2: Analyse du graphe d'appels...");
             CallGraphResolver resolver = new CallGraphResolver(dependencyParsers, indexer, projectDir);
             analyzeDependencies(report, indexer, resolver);
 
-            // 5. Generate and save the technical report
+            // 6. Sauvegarder le rapport technique et l'ajouter à la liste pour la corrélation
             allTechnicalReports.add(report);
             generateReport(report.applicationName, report, "technique");
         }
 
-        // Final Step: Correlate with business functions if a map is provided
+        // Étape Finale: Corrélation avec les fonctions d'affaires si un fichier de mapping est fourni
         if (businessMapFile != null && businessMapFile.exists()) {
             correlateBusinessFunctions(allTechnicalReports);
         }
@@ -136,7 +148,7 @@ public class AnalysisEngine {
     }
 
     private void parseConfiguration(File projectDir, AnalysisReport report) {
-        progressReporter.reportStep(projectDir.getName(), "Analyse de la configuration...");
+        progressReporter.reportStep(projectDir.getName(), "Analyse de la configuration .properties...");
         try {
             Map<String, String> configuration = propertiesParser.parseAndMergeProperties(projectDir, overridePath);
             report.configuration.putAll(configuration);
@@ -161,7 +173,6 @@ public class AnalysisEngine {
 
     private void analyzeDependencies(AnalysisReport report, JavaProjectIndexer indexer, CallGraphResolver resolver) {
         for (Endpoint endpoint : report.endpoints) {
-            // Struts actions and Servlets might not have a specific method to start from in this model
             if (endpoint.details.controllerClass == null || endpoint.details.handlerMethod == null) continue;
 
             MethodDeclaration startMethod = indexer.getMethod(endpoint.details.controllerClass, endpoint.details.handlerMethod);
@@ -170,7 +181,7 @@ public class AnalysisEngine {
             }
         }
     }
-    
+
     private void correlateBusinessFunctions(List<AnalysisReport> technicalReports) throws IOException {
         progressReporter.reportCorrelationStart();
         Map<String, String> businessMap = businessMapParser.parse(businessMapFile);
@@ -180,7 +191,7 @@ public class AnalysisEngine {
     }
 
     private void generateReport(String name, Object reportData, String type) throws IOException {
-        String reportFileName = String.format("rapport-%s-%s.json", type, name);
+        String reportFileName = String.format("rapport-%s-%s.json", type, name.replaceAll("[^a-zA-Z0-9.-]", "_"));
         Path reportPath = outputDirectory.toPath().resolve(reportFileName);
         reportGenerator.writeReport(reportData, reportPath.toFile());
 
