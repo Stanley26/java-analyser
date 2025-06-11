@@ -1,4 +1,3 @@
-// model/technical/EndpointDetails.java
 package com.analyzer.model.technical;
 
 import java.util.ArrayList;
