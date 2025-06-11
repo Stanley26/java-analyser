@@ -64,10 +64,15 @@ public class CallGraphResolver {
         String methodSignature = currentMethod.getSignature().asString();
         
         // 2. Trouver le nom complet de la classe contenant la méthode.
-        // On s'assure que la chaîne de Optional est correctement résolue en une String.
-        String className = currentMethod.findAncestor(TypeDeclaration.class)
-                .flatMap(TypeDeclaration::getFullyQualifiedName)
-                .orElse(""); // Si le nom n'est pas trouvé, on retourne une chaîne vide.
+        // Cette version est décomposée pour garantir une inférence de type correcte par le compilateur.
+        Optional<TypeDeclaration<?>> ancestorOpt = currentMethod.findAncestor(TypeDeclaration.class);
+        String className = ""; // Valeur par défaut
+        if (ancestorOpt.isPresent()) {
+            Optional<String> classNameOpt = ancestorOpt.get().getFullyQualifiedName();
+            if (classNameOpt.isPresent()) {
+                className = classNameOpt.get();
+            }
+        }
 
         // Si le nom de la classe est vide, on ne peut pas continuer.
         if (className.isEmpty()) {
@@ -85,9 +90,9 @@ public class CallGraphResolver {
         // --- FIN DU BLOC CORRIGÉ ---
 
         // Étape 1 : Analyser la méthode actuelle pour les dépendances directes
-        Optional<TypeDeclaration<?>> enclosingClassOpt = currentMethod.findAncestor(TypeDeclaration.class);
-        if (enclosingClassOpt.isPresent()) {
-            TypeDeclaration<?> enclosingClass = enclosingClassOpt.get();
+        // On réutilise la variable 'ancestorOpt' qui a déjà le bon type.
+        if (ancestorOpt.isPresent()) {
+            TypeDeclaration<?> enclosingClass = ancestorOpt.get();
             for (DependencyParser parser : dependencyParsers) {
                 endpointDetails.externalCalls.addAll(parser.findDependencies(currentMethod, enclosingClass));
             }
