@@ -11,8 +11,7 @@ public class AnalysisReport {
     public String analysisTimestamp;
     public String sourcePath;
     public Map<String, String> configuration = new ConcurrentHashMap<>();
-    
-    // Mise à jour de List<Object> vers List<Endpoint>
+    public int endpointCount = 0;
     public List<Endpoint> endpoints = new ArrayList<>();
 
     public AnalysisReport(String applicationName) {

@@ -94,30 +94,29 @@ public class CallGraphResolver {
         }
         visitedMethods.add(methodKey);
 
-        // Étape 1 : Analyser la méthode actuelle pour les dépendances directes (JDBC, EJB...).
+        // Étape 1: Analyser la méthode actuelle pour les règles de sécurité
+        endpointDetails.securityRules.addAll(securityParser.findSecurityRules(currentMethod));
+        
+        // Étape 2: Analyser la méthode pour les dépendances externes (JDBC, EJB)
         for (DependencyParser parser : dependencyParsers) {
             endpointDetails.externalCalls.addAll(parser.findDependencies(currentMethod, enclosingClass));
         }
 
-        // Étape 2 : Trouver tous les appels de méthode dans le corps de la méthode actuelle.
+        // Étape 3: Trouver les appels internes et continuer l'exploration
         currentMethod.findAll(MethodCallExpr.class).forEach(call -> {
             try {
-                // Tente de "résoudre" l'appel pour trouver la déclaration exacte de la méthode appelée.
                 ResolvedMethodDeclaration resolvedMethod = call.resolve();
                 String targetClassName = resolvedMethod.getQualifiedName().replace("." + resolvedMethod.getName(), "");
                 String targetMethodSignature = resolvedMethod.getSignature();
                 
-                // Vérifier si la méthode appelée fait partie de notre code (grâce à l'index)
-                // et n'est pas une méthode d'une librairie externe (ex: java.util.List.add).
                 MethodDeclaration nextMethod = indexer.getMethod(targetClassName, targetMethodSignature);
                 if (nextMethod != null) {
-                    // La méthode fait partie de notre projet, on l'ajoute au rapport et on continue l'exploration.
                     endpointDetails.internalCalls.add(targetClassName + "." + targetMethodSignature);
                     resolveRecursively(nextMethod, endpointDetails, visitedMethods);
                 }
-            } catch (UnsolvedSymbolException | UnsupportedOperationException | InternalError e) {
-                // Ignorer les appels qui ne peuvent pas être résolus. C'est normal pour les
-                // méthodes de librairies externes ou les cas de code très complexes.
+            } catch (Exception e) {
+                // On ignore les appels qui ne peuvent être résolus. C'est normal pour les librairies externes.
+                // System.err.println("Could not resolve method call: " + call.getNameAsString() + " in " + className);
             }
         });
     }
