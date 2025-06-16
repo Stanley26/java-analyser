@@ -1,78 +1,79 @@
-package com.analyzer;
+// =================================================================================
+// Fichier: src/main/java/com/votre_entreprise/analyzer/Main.java
+// =================================================================================
+package com.votre_entreprise.analyzer;
 
-import com.analyzer.engine.AnalysisEngine;
-import picocli.CommandLine;
-import picocli.CommandLine.Command;
-import picocli.CommandLine.Option;
-import java.io.File;
-import java.util.concurrent.Callable;
+import com.votre_entreprise.analyzer.discovery.ProjectDiscoverer;
+import com.votre_entreprise.analyzer.model.AnalyzedEndpoint;
+import com.votre_entreprise.analyzer.serialization.JsonSerializer;
+import java.io.IOException;
+import java.nio.file.Path;
+import java.util.List;
 
-/**
- * Classe principale et point d'entrée de l'application Legacy-Analyzer.
- * Utilise la librairie Picocli pour créer une interface en ligne de commande (CLI)
- * robuste et facile à utiliser, avec gestion automatique de l'aide et des options.
- */
-@Command(name = "legacy-analyzer",
-         mixinStandardHelpOptions = true,
-         version = "Legacy Analyzer 1.0",
-         description = "Analyse statiquement des applications Java legacy pour guider et sécuriser les projets de réécriture.")
-public class Main implements Callable<Integer> {
+public class Main {
 
-    @Option(names = {"-p", "--projects-path"},
-            required = true,
-            description = "Chemin vers le dossier racine contenant les projets à analyser.")
-    private File projectsPath;
+    public static void main(String[] args) {
+        if (args.length == 0 || args[0] == null || args[0].isBlank()) {
+            System.err.println("ERREUR: Vous devez fournir le chemin vers le répertoire racine des projets.");
+            System.out.println("Usage: java -jar analyzer.jar C:/chemin/vers/mes/projets");
+            return;
+        }
 
-    @Option(names = {"-o", "--override-path"},
-            description = "Chemin (optionnel) vers le projet contenant les fichiers .properties d'override (ex: la configuration de production).")
-    private File overridePath;
+        String rootDirectoryPath = args[0];
+        System.out.println("Lancement de l'analyse du portfolio dans : " + rootDirectoryPath);
+        System.out.println("------------------------------------------------------------------");
 
-    @Option(names = {"-b", "--business-map"},
-            description = "Chemin (optionnel) vers le fichier CSV qui mappe les URLs aux fonctions d'affaires.")
-    private File businessMapFile;
-    
-    @Option(names = {"-sp", "--spring-profile"},
-            description = "Spécifie (optionnellement) le profil Spring à activer (ex: prod) pour l'analyse des configurations.")
-    private String springProfile;
+        try {
+            List<Path> projectsToAnalyze = ProjectDiscoverer.findMavenProjects(rootDirectoryPath);
 
-    @Option(names = {"-out", "--output-directory"},
-            description = "Dossier de sortie pour les rapports JSON. Par défaut, un dossier 'reports' est créé.",
-            defaultValue = "reports")
-    private File outputDirectory;
+            if (projectsToAnalyze.isEmpty()) {
+                System.out.println("Aucun projet Maven valide trouvé dans le répertoire spécifié.");
+                return;
+            }
 
-    /**
-     * Cette méthode est appelée par Picocli après avoir parsé les arguments de la ligne de commande.
-     * C'est ici que la logique principale de l'application est lancée.
-     *
-     * @return 0 en cas de succès, un autre code en cas d'erreur.
-     * @throws Exception Si une erreur survient durant l'analyse.
-     */
-    @Override
-    public Integer call() throws Exception {
-        System.out.println("Initialisation de l'analyseur...");
-        
-        // Crée une instance du moteur d'analyse en lui passant toute la configuration
-        // reçue de la ligne de commande.
-        AnalysisEngine engine = new AnalysisEngine(projectsPath, overridePath, businessMapFile, springProfile, outputDirectory);
-        
-        // Lance le processus d'analyse.
-        engine.run();
-        
-        return 0;
+            System.out.println(projectsToAnalyze.size() + " projets à analyser : ");
+            projectsToAnalyze.forEach(p -> System.out.println(" - " + p.getFileName()));
+            System.out.println("------------------------------------------------------------------");
+
+            int successCount = 0;
+            for (Path projectPath : projectsToAnalyze) {
+                String projectName = projectPath.getFileName().toString();
+                System.out.println(">> Démarrage de l'analyse pour le projet : " + projectName);
+
+                try {
+                    SingleProjectAnalyzer analyzer = new SingleProjectAnalyzer(projectPath.toString());
+                    List<AnalyzedEndpoint> results = analyzer.analyze();
+                    saveProjectReport(projectName, results);
+                    System.out.println("<< Succès : Rapport généré pour " + projectName);
+                    successCount++;
+
+                } catch (Exception e) {
+                    System.err.println("!! ERREUR lors de l'analyse du projet " + projectName + ": " + e.getMessage());
+                    e.printStackTrace();
+                } finally {
+                    System.out.println("------------------------------------------------------------------");
+                }
+            }
+
+            System.out.println("Analyse du portfolio terminée.");
+            System.out.println("Rapports générés avec succès : " + successCount + "/" + projectsToAnalyze.size());
+
+        } catch (IOException e) {
+            System.err.println("ERREUR: Impossible de lire le répertoire racine des projets : " + e.getMessage());
+        }
     }
 
-    /**
-     * La méthode main standard de Java. Elle configure Picocli et exécute l'application.
-     *
-     * @param args Les arguments fournis par l'utilisateur en ligne de commande.
-     */
-    public static void main(String[] args) {
-        // Crée une nouvelle instance de la commande et l'exécute avec les arguments fournis.
-        // Picocli s'occupe de créer une instance de Main, d'injecter les valeurs des options,
-        // et d'appeler la méthode call().
-        int exitCode = new CommandLine(new Main()).execute(args);
-        
-        // Termine l'application avec le code de sortie retourné par la logique métier.
-        System.exit(exitCode);
+    private static void saveProjectReport(String projectName, List<AnalyzedEndpoint> results) {
+        if (results == null || results.isEmpty()) {
+            System.out.println("   -> Aucun endpoint trouvé ou analysé pour " + projectName + ". Aucun rapport généré.");
+            return;
+        }
+        String outputFilename = "rapport_analyse_" + projectName + ".json";
+        try {
+            JsonSerializer.save(results, outputFilename);
+            System.out.println("   -> Rapport sauvegardé : " + outputFilename);
+        } catch (Exception e) {
+            System.err.println("   -> !! ERREUR lors de la sauvegarde du rapport pour " + projectName + ": " + e.getMessage());
+        }
     }
 }

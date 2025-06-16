@@ -1,72 +1,73 @@
+/*
+ * build.gradle
+ * Fichier de build principal qui définit les dépendances et les tâches en utilisant la syntaxe Groovy.
+ */
+
 plugins {
-    // Le plugin java-library est la base pour un projet Java.
-    id 'java-library'
-    // Le plugin application permet de créer un exécutable.
+    // Plugin pour une application Java standard
     id 'application'
+    // Plugin Shadow pour créer un "fat JAR" ou "uber JAR" qui inclut toutes les dépendances.
+    // C'est essentiel pour créer un outil en ligne de commande facilement distribuable.
+    id 'com.github.johnrengelman.shadow' version '8.1.1'
 }
 
-// Informations de base sur le projet.
-group = 'com.analyzer'
-version = '1.0-SNAPSHOT'
+// Configuration générale du projet
+group = 'com.votre_entreprise'
+version = '1.0.0'
 
-// Définition de la version de Java à utiliser pour la compilation.
-sourceCompatibility = JavaVersion.VERSION_21
-targetCompatibility = JavaVersion.VERSION_21
+// Configuration spécifique à Java
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}
 
-// Déclaration du dépôt où Gradle doit chercher les librairies (dépendances).
+// Configuration de l'application
+application {
+    // Spécifie la classe principale à exécuter lorsque le JAR est lancé
+    mainClassName = 'com.votre_entreprise.analyzer.Main'
+}
+
 repositories {
+    // Dépôt central de Maven, où la plupart des bibliothèques sont hébergées
     mavenCentral()
 }
 
-// Liste de toutes les librairies externes nécessaires au projet.
 dependencies {
-    // Bibliothèque pour parser le code source Java et résoudre les types.
-    implementation 'com.github.javaparser:javaparser-symbol-solver-core:3.25.10'
+    // ===== Dépendances Spoon pour l'analyse de code =====
+    // Coeur de la bibliothèque Spoon
+    implementation('fr.inria.gforge.spoon:spoon-core:11.0.0') {
+        // On exclut une dépendance conflictuelle pour éviter les avertissements
+        exclude group: 'org.slf4j'
+    }
 
-    // Bibliothèque pour générer les rapports JSON.
+    // ===== Dépendance pour la lecture des pom.xml =====
+    // Nécessaire pour détecter les modules et les dépendances Maven
+    implementation 'org.apache.maven:maven-model:3.9.6'
+
+    // ===== Dépendances pour la sérialisation en JSON =====
+    // Jackson est une bibliothèque standard, puissante et flexible pour gérer le JSON
     implementation 'com.fasterxml.jackson.core:jackson-databind:2.17.1'
-    implementation 'com.fasterxml.jackson.core:jackson-core:2.17.1'
-    implementation 'com.fasterxml.jackson.core:jackson-annotations:2.17.1'
 
-    // Bibliothèque pour créer une application en ligne de commande (CLI) robuste.
-    implementation 'info.picocli:picocli:4.7.6'
-    annotationProcessor 'info.picocli:picocli-codegen:4.7.6'
-
-    // Dépendances pour les tests unitaires.
-    testImplementation platform('org.junit:junit-bom:5.10.0')
-    testImplementation 'org.junit.jupiter:junit-jupiter'
+    // ===== Dépendances pour les tests (Bonne pratique) =====
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.10.2'
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.10.2'
 }
 
-// Configuration du plugin 'application'.
-application {
-    // Spécifie la classe principale à exécuter lorsque le JAR est lancé.
-    mainClass = 'com.analyzer.Main'
-}
-
-// Tâches de configuration supplémentaires.
-tasks.withType(JavaCompile) {
-    // S'assure que les fichiers sont lus et écrits en UTF-8 pour éviter les problèmes d'encodage.
-    options.encoding = 'UTF-8'
-}
-
-tasks.withType(Test) {
-    // Configure Gradle pour utiliser la plateforme de test JUnit 5.
+test {
     useJUnitPlatform()
 }
 
-// Configuration de la tâche 'jar' pour créer un "fat JAR"
-// qui inclut toutes les dépendances nécessaires à l'exécution.
-jar {
-    manifest {
-        attributes(
-            'Main-Class': 'com.analyzer.Main'
-        )
-    }
-    from {
-        configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
-    }
-
-    // Stratégie pour gérer les fichiers en double lors de la création du "fat JAR".
-    // On exclut les fichiers de métadonnées qui causent souvent des conflits.
-    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+// Configuration de la tâche ShadowJar pour créer le fat JAR
+shadowJar {
+    // Nom de base pour le fichier JAR généré
+    archiveBaseName = 'analyzer'
+    // Le classificateur pour différencier le fat JAR du JAR normal
+    archiveClassifier = ''
+    // La version est héritée de la configuration du projet
+    archiveVersion = project.version
+    // Fusionne les fichiers de service pour éviter les conflits
+    mergeServiceFiles()
 }
+
+// Fait en sorte que la tâche 'build' dépende de 'shadowJar'
+build.dependsOn shadowJar
