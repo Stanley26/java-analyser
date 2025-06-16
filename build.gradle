@@ -17,8 +17,8 @@ version = '1.0.0'
 
 // Configuration spécifique à Java
 java {
-    sourceCompatibility = JavaVersion.VERSION_17
-    targetCompatibility = JavaVersion.VERSION_17
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
 }
 
 // Configuration de l'application
@@ -34,18 +34,15 @@ repositories {
 
 dependencies {
     // ===== Dépendances Spoon pour l'analyse de code =====
-    // Coeur de la bibliothèque Spoon
-    implementation('fr.inria.gforge.spoon:spoon-core:11.0.0') {
-        // On exclut une dépendance conflictuelle pour éviter les avertissements
-        exclude group: 'org.slf4j'
-    }
+    implementation 'fr.inria.gforge.spoon:spoon-core:11.0.0'
+
+    // Cela résout l'erreur NoClassDefFoundError.
+    implementation 'org.slf4j:slf4j-simple:2.0.13'
 
     // ===== Dépendance pour la lecture des pom.xml =====
-    // Nécessaire pour détecter les modules et les dépendances Maven
     implementation 'org.apache.maven:maven-model:3.9.6'
 
     // ===== Dépendances pour la sérialisation en JSON =====
-    // Jackson est une bibliothèque standard, puissante et flexible pour gérer le JSON
     implementation 'com.fasterxml.jackson.core:jackson-databind:2.17.1'
 
     // ===== Dépendances pour les tests (Bonne pratique) =====
