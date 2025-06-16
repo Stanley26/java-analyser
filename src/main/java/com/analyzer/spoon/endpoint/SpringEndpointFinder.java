@@ -4,7 +4,9 @@ package com.votre_entreprise.analyzer.spoon.endpoint;
 import spoon.Launcher;
 import spoon.reflect.declaration.CtMethod;
 import spoon.reflect.factory.Factory;
+import spoon.reflect.reference.CtTypeReference;
 import spoon.reflect.visitor.filter.AnnotationFilter;
+
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -32,8 +34,9 @@ public class SpringEndpointFinder implements EndpointFinder {
         // Chercher toutes les annotations de mapping
         for (String annotationName : MAPPING_ANNOTATIONS) {
             try {
-                // On utilise le class loader pour trouver la vraie classe d'annotation
-                Class<? extends Annotation> annotationClass = (Class<? extends Annotation>) Class.forName("org.springframework.web.bind.annotation." + annotationName);
+                String fullAnnotationName = "org.springframework.web.bind.annotation." + annotationName;
+                Class<? extends Annotation> annotationClass = (Class<? extends Annotation>) Class.forName(fullAnnotationName);
+                
                 List<CtMethod<?>> methods = factory.getModel().getElements(new AnnotationFilter<>(annotationClass));
                 
                 for(CtMethod<?> method : methods) {
@@ -42,7 +45,7 @@ public class SpringEndpointFinder implements EndpointFinder {
                 }
                 allEndpoints.addAll(methods);
             } catch (ClassNotFoundException e) {
-                // Ignore si une annotation n'est pas trouvée (par exemple, si Spring n'est pas une dépendance)
+                // Ignore si une annotation n'est pas trouvée
             }
         }
         return allEndpoints;
@@ -54,15 +57,16 @@ public class SpringEndpointFinder implements EndpointFinder {
             String[] paths = (String[]) valueMethod.invoke(annotation);
             String path = (paths.length > 0) ? paths[0] : "/";
             
-            // On trouve le path de base sur la classe
             String basePath = "";
-            if(method.getDeclaringType() != null && method.getDeclaringType().getAnnotation(factory.Annotation().get("RequestMapping")) != null) {
-                 Annotation classAnnotation = method.getDeclaringType().getAnnotation(factory.Annotation().get("RequestMapping"));
+            CtTypeReference<?> requestMappingRef = factory.Type().createReference("org.springframework.web.bind.annotation.RequestMapping");
+            if(method.getDeclaringType() != null && method.getDeclaringType().getAnnotation(requestMappingRef) != null) {
+                 Annotation classAnnotation = method.getDeclaringType().getAnnotation(requestMappingRef).getActualAnnotation();
                  String[] basePaths = (String[]) classAnnotation.annotationType().getMethod("value").invoke(classAnnotation);
                  basePath = (basePaths.length > 0) ? basePaths[0] : "";
             }
             
-            pathCache.put(method, basePath + path);
+            // Assure un path propre (pas de double slash)
+            pathCache.put(method, (basePath + path).replaceAll("//", "/"));
             httpMethodCache.put(method, annotation.annotationType().getSimpleName().replace("Mapping", "").toUpperCase());
         } catch (Exception e) {
             pathCache.put(method, "/");

@@ -2,19 +2,21 @@
 package com.votre_entreprise.analyzer.spoon;
 
 import com.votre_entreprise.analyzer.model.Dependency;
+import spoon.reflect.code.CtInvocation;
 import spoon.reflect.declaration.CtAnnotation;
+import spoon.reflect.declaration.CtExecutable;
 import spoon.reflect.declaration.CtMethod;
 import spoon.reflect.declaration.CtType;
 import spoon.reflect.reference.CtExecutableReference;
 import spoon.reflect.visitor.CtScanner;
-import spoon.reflect.code.CtInvocation;
+
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
 public class DependencyAnalyzer {
-    
+
     public List<Dependency> analyze(CtMethod<?> startMethod) {
         List<Dependency> dependencies = new ArrayList<>();
         Set<CtMethod<?>> visitedMethods = new HashSet<>();
@@ -38,29 +40,36 @@ public class DependencyAnalyzer {
                 super.visitCtInvocation(invocation);
 
                 CtExecutableReference<T> execRef = invocation.getExecutable();
-                CtMethod<T> calledMethod = execRef.getDeclaration();
+                CtExecutable<T> declaration = execRef.getDeclaration();
 
-                if (calledMethod != null && calledMethod.getDeclaringType() != null) {
-                    CtType<?> declaringType = calledMethod.getDeclaringType();
-                    // Ignore les appels aux classes de base Java pour garder le rapport concis
-                    if (declaringType.getQualifiedName().startsWith("java.")) {
-                        return;
+                // CORRECTION : On vérifie que la déclaration est bien une méthode
+                if (declaration instanceof CtMethod) {
+                    CtMethod<T> calledMethod = (CtMethod<T>) declaration;
+
+                    if (calledMethod.getDeclaringType() != null) {
+                        CtType<?> declaringType = calledMethod.getDeclaringType();
+                        // Ignore les appels aux classes de base Java pour garder le rapport concis
+                        if (declaringType.getQualifiedName().startsWith("java.")) {
+                            return;
+                        }
+
+                        dependencies.add(new Dependency(
+                            getDependencyType(declaringType),
+                            declaringType.getQualifiedName(),
+                            calledMethod.getSignature(),
+                            depth + 1
+                        ));
+                        
+                        // Appel récursif pour explorer plus profondément
+                        recursiveScan(calledMethod, dependencies, visitedMethods, depth + 1);
                     }
-
-                    dependencies.add(new Dependency(
-                        getDependencyType(declaringType),
-                        declaringType.getQualifiedName(),
-                        calledMethod.getSignature(),
-                        depth + 1
-                    ));
-                    
-                    // Appel récursif pour explorer plus profondément
-                    recursiveScan(calledMethod, dependencies, visitedMethods, depth + 1);
                 }
             }
         };
 
-        scanner.scan(method.getBody());
+        if (method.getBody() != null) {
+            scanner.scan(method.getBody());
+        }
     }
 
     private String getDependencyType(CtType<?> type) {
@@ -71,7 +80,7 @@ public class DependencyAnalyzer {
             if (annotationName.contains("Component")) return "Component";
             if (annotationName.contains("RestController")) return "Controller";
         }
-        // Heuristique simple basée sur le nom si aucune annotation n'est trouvée
+        
         String className = type.getSimpleName();
         if (className.endsWith("Service")) return "Service";
         if (className.endsWith("Repository")) return "Repository";
