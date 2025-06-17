@@ -11,8 +11,10 @@ import com.votre_entreprise.analyzer.spoon.endpoint.SpringEndpointFinder;
 import com.votre_entreprise.analyzer.spoon.endpoint.StrutsEndpointFinder;
 
 import spoon.Launcher;
+import spoon.compiler.SpoonFileFilter;
 import spoon.reflect.declaration.CtMethod;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -28,12 +30,19 @@ public class SingleProjectAnalyzer {
         System.out.println("   - Initialisation de Spoon pour le projet Maven : " + projectPath);
         Launcher spoonLauncher = new Launcher();
 
+        // On donne simplement le chemin racine du projet Maven à Spoon.
         spoonLauncher.addInputResource(projectPath);
+
+        spoonLauncher.getEnvironment().setInputFilter(new SpoonFileFilter() {
+            @Override
+            public boolean accept(File file) {
+                String path = file.getAbsolutePath().replace('\\', '/');
+                return path.endsWith(".java") && !path.contains("/test/");
+            }
+        });
         spoonLauncher.getEnvironment().setIgnoreSyntaxErrors(true);
         spoonLauncher.getEnvironment().setComplianceLevel(8);
         spoonLauncher.getEnvironment().setNoClasspath(false);
-
-        // Construit le modèle avec toutes les sources des modules et leurs interdépendances
         spoonLauncher.buildModel();
 
         System.out.println("   - Détection du framework...");
@@ -48,7 +57,7 @@ public class SingleProjectAnalyzer {
         }
 
         List<CtMethod<?>> entryPointMethods = finder.findEndpoints();
-        System.out.println("   - " + entryPointMethods.size() + " endpoints trouvés.");
+        System.out.println("   - " + entryPointMethods.size() + " endpoints de production trouvés.");
 
         List<AnalyzedEndpoint> results = new ArrayList<>();
         DependencyAnalyzer dependencyAnalyzer = new DependencyAnalyzer();
