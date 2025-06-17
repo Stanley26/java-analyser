@@ -10,17 +10,9 @@ import com.votre_entreprise.analyzer.spoon.endpoint.EndpointFinder;
 import com.votre_entreprise.analyzer.spoon.endpoint.SpringEndpointFinder;
 import com.votre_entreprise.analyzer.spoon.endpoint.StrutsEndpointFinder;
 
-import org.apache.maven.model.Model;
-import org.apache.maven.model.io.xpp3.MavenXpp3Reader;
-
 import spoon.Launcher;
 import spoon.reflect.declaration.CtMethod;
 
-import java.io.File;
-import java.io.FileReader;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -33,39 +25,15 @@ public class SingleProjectAnalyzer {
     }
 
     public List<AnalyzedEndpoint> analyze() throws Exception {
-        System.out.println("   - Initialisation de Spoon pour le projet multi-module : " + projectPath);
+        System.out.println("   - Initialisation de Spoon pour le projet Maven : " + projectPath);
         Launcher spoonLauncher = new Launcher();
 
-        // On lit le pom.xml racine pour trouver tous les sous-modules.
-        MavenXpp3Reader mavenReader = new MavenXpp3Reader();
-        Model rootModel = mavenReader.read(new FileReader(Paths.get(projectPath, "pom.xml").toFile()));
-        List<String> modules = rootModel.getModules();
-        
-        System.out.println("   - Modules trouvés : " + modules);
-
-        boolean sourceAdded = false;
-        // On ajoute le code source de chaque module comme une ressource d'entrée pour Spoon.
-        for (String moduleName : modules) {
-            Path modulePath = Paths.get(projectPath, moduleName);
-            Path mainJavaPath = modulePath.resolve("src").resolve("main").resolve("java");
-            
-            if (Files.exists(mainJavaPath) && Files.isDirectory(mainJavaPath)) {
-                System.out.println("     -> Ajout du répertoire source : " + mainJavaPath);
-                spoonLauncher.addInputResource(mainJavaPath.toString());
-                sourceAdded = true;
-            }
-        }
-
-        if (!sourceAdded) {
-            System.err.println("Avertissement : Aucun répertoire 'src/main/java' trouvé dans les modules listés. L'analyse risque d'être vide.");
-        }
-
-        // Configuration de l'environnement de Spoon
+        spoonLauncher.addInputResource(projectPath);
         spoonLauncher.getEnvironment().setIgnoreSyntaxErrors(true);
         spoonLauncher.getEnvironment().setComplianceLevel(8);
-        spoonLauncher.getEnvironment().setNoClasspath(false); // Indique à Spoon de construire son propre classpath
+        spoonLauncher.getEnvironment().setNoClasspath(false);
 
-        // Construit le modèle avec toutes les sources des modules
+        // Construit le modèle avec toutes les sources des modules et leurs interdépendances
         spoonLauncher.buildModel();
 
         System.out.println("   - Détection du framework...");
