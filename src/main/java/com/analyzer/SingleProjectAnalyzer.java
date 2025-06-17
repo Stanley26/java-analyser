@@ -26,8 +26,10 @@ public class SingleProjectAnalyzer {
         System.out.println("   - Initialisation de Spoon pour " + projectPath);
         Launcher spoonLauncher = new Launcher();
         spoonLauncher.addInputResource(projectPath);
+        spoonLauncher.getEnvironment().setIgnoreSyntaxErrors(true);
+        spoonLauncher.getEnvironment().setComplianceLevel(8);
         spoonLauncher.getEnvironment().setMavenCompliance(true);
-        spoonLauncher.getEnvironment().setNoClasspath(false); // Force la résolution du classpath
+        spoonLauncher.getEnvironment().setNoClasspath(false);
         spoonLauncher.buildModel();
 
         System.out.println("   - Détection du framework...");
